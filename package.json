@@ -1,11 +1,11 @@
 {
-  "name": "sports-app-backend",
+  "name": "goalpulse-backend",
   "version": "1.0.0",
-  "description": "Backend para aplicacion deportiva",
+  "description": "GoalPulse Backend API",
   "main": "dist/server.js",
   "scripts": {
     "dev": "nodemon --exec \"node --max-old-space-size=512 -r ts-node/register src/server.ts\" --ext ts",
-    "build": "tsc",
+    "build": "npx tsc",
     "start": "node dist/server.js"
   },
   "dependencies": {
