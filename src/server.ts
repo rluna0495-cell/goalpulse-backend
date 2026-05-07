@@ -1,49 +1,34 @@
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import footballRoutes from './routes/football.routes';
-
-dotenv.config();
+import { startLiveUpdateJob } from './jobs/liveUpdater';
 
 const app = express();
 const httpServer = createServer(app);
 
-export const io = new Server(httpServer, {
-  cors: { origin: ['http://localhost:3000'], methods: ['GET', 'POST'] }
-});
-
-app.use(cors());
+app.use(cors({ origin: "*" }));
 app.use(express.json());
 
+export const io = new Server(httpServer, { cors: { origin: "*" } });
+
 const cache: Record<string, { data: any; timestamp: number }> = {};
-const CACHE_TTL = 5 * 60 * 1000;
 
-export function getCache(key: string) {
-  const cached = cache[key];
-  if (cached && Date.now() - cached.timestamp < CACHE_TTL) return cached.data;
+export const getCache = (key: string) => {
+  const item = cache[key];
+  if (item && Date.now() - item.timestamp < 60000) return item.data;
   return null;
-}
+};
 
-export function setCache(key: string, data: any) {
+export const setCache = (key: string, data: any) => {
   cache[key] = { data, timestamp: Date.now() };
-}
-
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
-});
+};
 
 app.use('/api/football', footballRoutes);
 
-io.on('connection', (socket) => {
-  console.log(`Cliente conectado: ${socket.id}`);
-  socket.on('disconnect', () => {
-    console.log(`Cliente desconectado: ${socket.id}`);
-  });
-});
-
 const PORT = process.env.PORT || 3001;
 httpServer.listen(PORT, () => {
-  console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
+  console.log(`🚀 GoalPulse Backend en puerto ${PORT}`);
+  startLiveUpdateJob();
 });

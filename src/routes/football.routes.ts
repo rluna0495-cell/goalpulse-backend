@@ -1,48 +1,41 @@
-import { Router, Request, Response } from 'express';
-import { getTodayMatches, getLiveMatches, getStandings, getMatchDetail } from '../services/football.service';
+import { Router } from 'express';
+import * as footballService from '../services/football.service';
 
 const router = Router();
 
-router.get('/today', async (req: Request, res: Response): Promise<void> => {
-  try {
-    const leagueId = req.query.league ? Number(req.query.league) : undefined;
-    const matches = await getTodayMatches(leagueId);
-    res.json({ success: true, data: matches });
-  } catch {
-    res.status(500).json({ success: false, message: 'Error obteniendo partidos' });
-  }
+router.get('/live', async (req, res) => {
+  try { res.json({ data: await footballService.getLiveMatches() }); } 
+  catch (e) { res.status(500).json({ error: "Error" }); }
 });
 
-router.get('/live', async (req: Request, res: Response): Promise<void> => {
-  try {
-    const matches = await getLiveMatches();
-    res.json({ success: true, data: matches });
-  } catch {
-    res.status(500).json({ success: false, message: 'Error obteniendo partidos en vivo' });
-  }
+router.get('/today', async (req, res) => {
+  try { res.json({ data: await footballService.getTodayMatches() }); } 
+  catch (e) { res.status(500).json({ error: "Error" }); }
 });
 
-router.get('/standings', async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { league, season } = req.query;
-    if (!league || !season) {
-      res.status(400).json({ success: false, message: 'league y season son requeridos' });
-      return;
-    }
-    const standings = await getStandings(Number(league), Number(season));
-    res.json({ success: true, data: standings });
-  } catch {
-    res.status(500).json({ success: false, message: 'Error obteniendo standings' });
-  }
+router.get('/match/:id', async (req, res) => {
+  try { res.json({ data: await footballService.getMatchById(req.params.id) }); } 
+  catch (e) { res.status(500).json({ error: "Error" }); }
 });
 
-router.get('/match/:id', async (req: Request, res: Response): Promise<void> => {
-  try {
-    const match = await getMatchDetail(Number(req.params.id));
-    res.json({ success: true, data: match });
-  } catch {
-    res.status(500).json({ success: false, message: 'Error obteniendo detalle del partido' });
-  }
+router.get('/match/:id/lineups', async (req, res) => {
+  try { res.json({ data: await footballService.getMatchLineups(req.params.id) }); } 
+  catch (e) { res.status(500).json({ error: "Error" }); }
+});
+
+router.get('/match/:id/stats', async (req, res) => {
+  try { res.json({ data: await footballService.getMatchStats(req.params.id) }); } 
+  catch (e) { res.status(500).json({ error: "Error" }); }
+});
+
+router.get('/league/:id', async (req, res) => {
+  try { res.json({ data: await footballService.getMatchesByLeague(req.params.id) }); } 
+  catch (e) { res.status(500).json({ error: "Error" }); }
+});
+
+router.get('/standings/:id', async (req, res) => {
+  try { res.json({ data: await footballService.getStandings(req.params.id) }); } 
+  catch (e) { res.status(500).json({ error: "Error" }); }
 });
 
 export default router;
