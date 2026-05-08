@@ -6,23 +6,21 @@ const apiClient = axios.create({
   headers: { 'x-apisports-key': API_KEY }
 });
 
-export const getLiveMatches = () => 
-  apiClient.get('/fixtures', { params: { live: 'all' } }).then(r => r.data.response);
+export const footballService = {
+  // PARTIDOS EN VIVO Y HOY
+  getLive: () => apiClient.get('/fixtures', { params: { live: 'all' } }).then(r => r.data.response),
+  getToday: () => {
+    const today = new Date().toISOString().split('T')[0];
+    return apiClient.get('/fixtures', { params: { date: today } }).then(r => r.data.response);
+  },
 
-export const getTodayMatches = () => 
-  apiClient.get('/fixtures', { params: { date: new Date().toISOString().split('T')[0] } }).then(r => r.data.response);
+  // DETALLES PROFESIONALES
+  getLineups: (id: string) => apiClient.get('/fixtures/lineups', { params: { fixture: id } }).then(r => r.data.response),
+  getStats: (id: string) => apiClient.get('/fixtures/statistics', { params: { fixture: id } }).then(r => r.data.response),
+  getH2H: (teamA: string, teamB: string) => apiClient.get('/fixtures/headtohead', { params: { h2h: `${teamA}-${teamB}`, last: 5 } }).then(r => r.data.response),
 
-export const getMatchById = (id: any) => 
-  apiClient.get('/fixtures', { params: { id } }).then(r => r.data.response);
-
-export const getMatchLineups = (id: any) => 
-  apiClient.get('/fixtures/lineups', { params: { fixture: id } }).then(r => r.data.response);
-
-export const getMatchStats = (id: any) => 
-  apiClient.get('/fixtures/statistics', { params: { fixture: id } }).then(r => r.data.response);
-
-export const getMatchesByLeague = (id: any) => 
-  apiClient.get('/fixtures', { params: { league: id, date: new Date().toISOString().split('T')[0] } }).then(r => r.data.response);
-
-export const getStandings = (id: any) => 
-  apiClient.get('/standings', { params: { league: id, season: new Date().getFullYear() } }).then(r => r.data.response);
+  // LIGAS Y TABLAS (Para el menú mundial)
+  getLeagues: () => apiClient.get('/leagues').then(r => r.data.response),
+  getStandings: (leagueId: string, season: number = 2024) => 
+    apiClient.get('/standings', { params: { league: leagueId, season } }).then(r => r.data.response)
+};
