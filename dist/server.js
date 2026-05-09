@@ -4,44 +4,54 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.io = void 0;
-exports.getCache = getCache;
-exports.setCache = setCache;
 const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
-const dotenv_1 = __importDefault(require("dotenv"));
 const http_1 = require("http");
 const socket_io_1 = require("socket.io");
 const football_routes_1 = __importDefault(require("./routes/football.routes"));
-dotenv_1.default.config();
+const liveUpdater_1 = require("./jobs/liveUpdater");
 const app = (0, express_1.default)();
 const httpServer = (0, http_1.createServer)(app);
-exports.io = new socket_io_1.Server(httpServer, {
-    cors: { origin: ['http://localhost:3000'], methods: ['GET', 'POST'] }
-});
-app.use((0, cors_1.default)());
+// 1. Configuración de CORS Dinámica y a prueba de fallos
+app.use((0, cors_1.default)({
+    origin: (origin, callback) => {
+        // Permitir cualquier dominio de Vercel, localhost o peticiones sin origen (postman)
+        if (!origin || origin.includes('localhost') || origin.includes('vercel.app')) {
+            callback(null, true);
+        }
+        else {
+            callback(new Error('Origen no permitido por CORS'));
+        }
+    },
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    credentials: true
+}));
 app.use(express_1.default.json());
-const cache = {};
-const CACHE_TTL = 5 * 60 * 1000;
-function getCache(key) {
-    const cached = cache[key];
-    if (cached && Date.now() - cached.timestamp < CACHE_TTL)
-        return cached.data;
-    return null;
-}
-function setCache(key, data) {
-    cache[key] = { data, timestamp: Date.now() };
-}
-app.get('/health', (req, res) => {
-    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+// 2. Configuración de Socket.io
+exports.io = new socket_io_1.Server(httpServer, {
+    cors: {
+        origin: (origin, callback) => {
+            if (!origin || origin.includes('localhost') || origin.includes('vercel.app')) {
+                callback(null, true);
+            }
+            else {
+                callback(new Error('Origen no permitido por CORS'));
+            }
+        },
+        methods: ['GET', 'POST'],
+        credentials: true
+    }
 });
+// 3. Rutas de la API
 app.use('/api/football', football_routes_1.default);
-exports.io.on('connection', (socket) => {
-    console.log(`Cliente conectado: ${socket.id}`);
-    socket.on('disconnect', () => {
-        console.log(`Cliente desconectado: ${socket.id}`);
-    });
+// RUTA DE PRUEBA: Para saber al instante si Railway está vivo
+app.get('/', (req, res) => {
+    res.status(200).json({ status: 'OK', message: '¡El Backend de GoalPulse está VIVO y conectado!' });
 });
-const PORT = process.env.PORT || 3001;
-httpServer.listen(PORT, () => {
-    console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
+// 4. Inicio del Servidor
+const PORT = Number(process.env.PORT) || 3001;
+httpServer.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 GoalPulse Backend ejecutándose en el puerto ${PORT}`);
+    // Iniciamos el actualizador automático
+    (0, liveUpdater_1.startLiveUpdateJob)();
 });

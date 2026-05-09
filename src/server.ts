@@ -8,21 +8,17 @@ import { startLiveUpdateJob } from './jobs/liveUpdater';
 const app = express();
 const httpServer = createServer(app);
 
-// 1. Configuración de CORS Profesional e Híbrida
-const allowedOrigins = [
-  'http://localhost:3000',
-  'https://goalpulse-frontend.vercel.app', // Recuerda cambiar esto por tu URL de Vercel luego
-];
-
+// 1. Configuración de CORS Dinámica y a prueba de fallos
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
+    // Permitir cualquier dominio de Vercel, localhost o peticiones sin origen (postman)
+    if (!origin || origin.includes('localhost') || origin.includes('vercel.app')) {
       callback(null, true);
     } else {
-      callback(new Error('No permitido por CORS'));
+      callback(new Error('Origen no permitido por CORS'));
     }
   },
-  methods: ['GET', 'POST'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   credentials: true
 }));
 
@@ -31,7 +27,13 @@ app.use(express.json());
 // 2. Configuración de Socket.io
 export const io = new Server(httpServer, {
   cors: {
-    origin: allowedOrigins,
+    origin: (origin, callback) => {
+      if (!origin || origin.includes('localhost') || origin.includes('vercel.app')) {
+        callback(null, true);
+      } else {
+        callback(new Error('Origen no permitido por CORS'));
+      }
+    },
     methods: ['GET', 'POST'],
     credentials: true
   }
@@ -40,11 +42,14 @@ export const io = new Server(httpServer, {
 // 3. Rutas de la API
 app.use('/api/football', footballRoutes);
 
+// RUTA DE PRUEBA: Para saber al instante si Railway está vivo
+app.get('/', (req, res) => {
+  res.status(200).json({ status: 'OK', message: '¡El Backend de GoalPulse está VIVO y conectado!' });
+});
+
 // 4. Inicio del Servidor
-// Convertimos el puerto a Número para evitar el error TS2769
 const PORT = Number(process.env.PORT) || 3001;
 
-// Usamos el puerto ya convertido a número
 httpServer.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 GoalPulse Backend ejecutándose en el puerto ${PORT}`);
   
