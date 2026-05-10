@@ -5,7 +5,7 @@ export const pool = new Pool({
   ssl: {
     rejectUnauthorized: false
   },
-  connectionTimeoutMillis: 10000, // 10 segundos máximo para conectar
+  connectionTimeoutMillis: 10000,
 });
 
 export const query = (text: string, params?: any[]) => pool.query(text, params);
