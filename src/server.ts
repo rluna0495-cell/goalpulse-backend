@@ -18,17 +18,17 @@ export const io = new Server(httpServer, {
 
 app.use('/api/football', footballRoutes);
 
-// RUTA DE PRUEBA DEFINITIVA
+// RUTA DE VERIFICACIÓN (Pruébala en el navegador)
 app.get('/', (req, res) => {
   res.status(200).json({ 
     status: 'ONLINE', 
-    version: '3.0-FINAL-RESCUE',
-    db_connected: 'Checking...' 
+    version: 'GOALPULSE-V3-ESTABLE',
+    info: 'Si ves esto, el código nuevo está activo'
   });
 });
 
-const initDB = async () => {
-  console.log('--- INICIANDO BASE DE DATOS ---');
+const initSystem = async () => {
+  console.log('--- INICIANDO SISTEMA DE BASE DE DATOS ---');
   try {
     await query(`
       CREATE TABLE IF NOT EXISTS matches (
@@ -43,18 +43,20 @@ const initDB = async () => {
         last_update TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
-    console.log('✅ TABLA MATCHES LISTA');
-    await syncNow(); 
+    console.log('✅ TABLA "matches" LISTA EN POSTGRES');
+    
+    // Forzamos la primera descarga de datos sin esperar a nadie
+    console.log('⚽ SINCRONIZACIÓN INICIAL EN MARCHA...');
+    await syncNow();
   } catch (err) {
-    console.error('⚠️ ALERTA DB:', err instanceof Error ? err.message : err);
+    console.error('⚠️ ERROR AL INICIAR DB:', err instanceof Error ? err.message : err);
   }
 };
 
-// Railway usa process.env.PORT, no lo fuerces a otro
 const PORT = process.env.PORT || 3001;
 
 httpServer.listen(Number(PORT), '0.0.0.0', async () => {
-  console.log(`🚀 SERVIDOR ACTIVO EN PUERTO: ${PORT}`);
-  await initDB();
+  console.log(`🚀 SERVIDOR FUNCIONANDO EN PUERTO: ${PORT}`);
+  await initSystem();
   startLiveUpdateJob();
 });

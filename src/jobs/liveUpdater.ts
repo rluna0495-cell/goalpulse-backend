@@ -4,11 +4,11 @@ import { query } from '../config/db';
 
 export const syncNow = async () => {
   try {
-    console.log('📡 SOLICITANDO DATOS A LA API...');
+    console.log('📡 PIDIENDO PARTIDOS A LA API EXTERNA...');
     const matches = await footballService.getLive();
     
     if (matches && matches.length > 0) {
-      console.log(`📥 PROCESANDO ${matches.length} PARTIDOS...`);
+      console.log(`📥 GUARDANDO ${matches.length} PARTIDOS EN POSTGRES...`);
       for (const m of matches) {
         await query(`
           INSERT INTO matches (fixture_id, league_name, home_team, away_team, home_score, away_score, status)
@@ -23,11 +23,13 @@ export const syncNow = async () => {
           m.goals.home, m.goals.away, m.fixture.status.short
         ]);
       }
-      console.log('💾 GUARDADO EN POSTGRES EXITOSO');
+      console.log('💾 DATOS GUARDADOS CORRECTAMENTE');
       io.emit('matches_update', matches);
+    } else {
+      console.log('⚠️ LA API NO DEVOLVIÓ PARTIDOS EN VIVO');
     }
   } catch (error) {
-    console.error('❌ ERROR EN SYNC:', error);
+    console.error('❌ ERROR DURANTE LA SINCRONIZACIÓN:', error);
   }
 };
 
@@ -35,7 +37,10 @@ export const startLiveUpdateJob = () => {
   setInterval(async () => {
     const activeUsers = io?.sockets?.sockets?.size || 0;
     if (activeUsers > 0) {
+      console.log(`🔄 ACTUALIZANDO PARA ${activeUsers} USUARIOS...`);
       await syncNow();
+    } else {
+      console.log('😴 0 USUARIOS: MODO AHORRO');
     }
   }, 30000);
 };

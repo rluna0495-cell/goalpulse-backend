@@ -5,7 +5,6 @@ export const pool = new Pool({
   ssl: {
     rejectUnauthorized: false
   },
-  // Configuraciones de estabilidad
   connectionTimeoutMillis: 20000,
   idleTimeoutMillis: 30000,
   max: 10
