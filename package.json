@@ -1,20 +1,16 @@
 {
   "name": "goalpulse-backend",
   "version": "1.0.0",
-  "description": "GoalPulse Backend API",
-  "main": "dist/server.js",
+  "main": "src/server.ts",
   "scripts": {
-    "dev": "nodemon --exec ts-node src/server.ts",
-    "build": "tsc",
-    "start": "node dist/server.js"
+    "start": "ts-node src/server.ts",
+    "build": "echo 'Skipping build, running directly with ts-node'"
   },
   "dependencies": {
     "axios": "^1.6.0",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
-    "ioredis": "^5.3.2",
-    "node-cron": "^3.0.3",
     "pg": "^8.11.3",
     "socket.io": "^4.6.1",
     "ts-node": "^10.9.2",
