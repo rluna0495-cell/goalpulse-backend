@@ -4,13 +4,14 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 import footballRoutes from './routes/football.routes';
 import { startLiveUpdateJob } from './jobs/liveUpdater';
+import { query } from './config/db';
 
 const app = express();
 const httpServer = createServer(app);
 
-// 1. Configuración de CORS Total (Sin restricciones para asegurar conexión con Vercel)
+// 1. Configuración de CORS Total
 app.use(cors({
-  origin: true, // Esto permite cualquier origen y es compatible con credenciales/cookies
+  origin: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
   credentials: true
@@ -18,7 +19,7 @@ app.use(cors({
 
 app.use(express.json());
 
-// 2. Configuración de Socket.io (También con apertura total)
+// 2. Configuración de Socket.io
 export const io = new Server(httpServer, {
   cors: {
     origin: true,
@@ -27,21 +28,42 @@ export const io = new Server(httpServer, {
   }
 });
 
-// 3. Rutas de la API
+// 3. Rutas
 app.use('/api/football', footballRoutes);
 
-// RUTA DE PRUEBA: Para saber al instante si Railway está vivo
 app.get('/', (req, res) => {
-  res.status(200).json({ status: 'OK', message: '¡El Backend de GoalPulse está VIVO y conectado!' });
+  res.status(200).json({ status: 'OK', message: '¡GoalPulse Backend conectado a Postgres!' });
 });
 
-// 4. Inicio del Servidor
-// Railway asigna el puerto automáticamente mediante process.env.PORT
+// 4. Inicialización de Base de Datos (Crea la tabla si no existe)
+const initDB = async () => {
+  try {
+    await query(`
+      CREATE TABLE IF NOT EXISTS matches (
+        id SERIAL PRIMARY KEY,
+        fixture_id INTEGER UNIQUE,
+        league_name TEXT,
+        home_team TEXT,
+        away_team TEXT,
+        home_score INTEGER,
+        away_score INTEGER,
+        status TEXT,
+        last_update TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    console.log('✅ Base de datos verificada: Tabla "matches" lista.');
+  } catch (err) {
+    console.error('❌ Error crítico inicializando Postgres:', err);
+  }
+};
+
+// 5. Inicio del Servidor
 const PORT = Number(process.env.PORT) || 3001;
 
-httpServer.listen(PORT, '0.0.0.0', () => {
+httpServer.listen(PORT, '0.0.0.0', async () => {
   console.log(`🚀 GoalPulse Backend ejecutándose en el puerto ${PORT}`);
   
-  // Iniciamos el actualizador automático de partidos
+  // Primero creamos las tablas, luego iniciamos el job
+  await initDB();
   startLiveUpdateJob();
 });

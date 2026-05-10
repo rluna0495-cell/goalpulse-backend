@@ -1,30 +1,49 @@
 import { io } from '../server';
 import { footballService } from '../services/football.service';
-import { setCache } from '../cache/config';
+import { query } from '../config/db';
 
 export const startLiveUpdateJob = () => {
   // Se ejecuta cada 30 segundos
   setInterval(async () => {
     try {
-      // Validamos que io y sockets existan para evitar errores de inicio
       const activeUsers = io?.sockets?.sockets?.size || 0;
 
       if (activeUsers > 0) {
-        console.log(`[GoalPulse] 🟢 ${activeUsers} usuarios. Sincronizando...`);
+        console.log(`[GoalPulse] 🟢 ${activeUsers} usuarios. Sincronizando con API y Postgres...`);
         
-        // Llamamos al servicio profesional que organizamos
-        const data = await footballService.getLive();
+        const matches = await footballService.getLive();
 
-        // Guardamos en caché para que el frontend cargue instantáneo
-        setCache('live_matches', data);
+        if (matches && matches.length > 0) {
+          for (const m of matches) {
+            // Guardamos o actualizamos en Postgres
+            await query(`
+              INSERT INTO matches (fixture_id, league_name, home_team, away_team, home_score, away_score, status)
+              VALUES ($1, $2, $3, $4, $5, $6, $7)
+              ON CONFLICT (fixture_id) DO UPDATE SET
+                home_score = EXCLUDED.home_score,
+                away_score = EXCLUDED.away_score,
+                status = EXCLUDED.status,
+                last_update = CURRENT_TIMESTAMP
+            `, [
+              m.fixture.id,
+              m.league.name,
+              m.teams.home.name,
+              m.teams.away.name,
+              m.goals.home,
+              m.goals.away,
+              m.fixture.status.short
+            ]);
+          }
+          console.log(`[Postgres] 💾 ${matches.length} partidos actualizados.`);
+        }
 
-        // Emitimos a todos los conectados
-        io.emit('matches_update', data);
+        // Emitimos a la web
+        io.emit('matches_update', matches);
       } else {
         console.log('[GoalPulse] 😴 0 usuarios. Modo ahorro activo.');
       }
     } catch (error) {
       console.error('❌ Error en el Job de actualización:', error);
     }
-  }, 30000); // 30 segundos
+  }, 30000);
 };
