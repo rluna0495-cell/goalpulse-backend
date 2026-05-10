@@ -1,62 +1,49 @@
 import express from 'express';
 import cors from 'cors';
+import dotenv from 'dotenv';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import footballRoutes from './routes/football.routes';
-import { startLiveUpdateJob, syncNow } from './jobs/liveUpdater';
-import { query } from './config/db';
+
+dotenv.config();
 
 const app = express();
 const httpServer = createServer(app);
 
-app.use(cors({ origin: true, credentials: true }));
+export const io = new Server(httpServer, {
+  cors: { origin: true, methods: ['GET', 'POST'] }
+});
+
+const cache: Record<string, { data: any; timestamp: number }> = {};
+const CACHE_TTL = 5 * 60 * 1000;
+
+export function getCache(key: string) {
+  const cached = cache[key];
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) return cached.data;
+  return null;
+}
+
+export function setCache(key: string, data: any) {
+  cache[key] = { data, timestamp: Date.now() };
+}
+
+app.use(cors());
 app.use(express.json());
 
-export const io = new Server(httpServer, {
-  cors: { origin: true, methods: ['GET', 'POST'], credentials: true }
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
 app.use('/api/football', footballRoutes);
 
-// RUTA DE VERIFICACIÓN (Pruébala en el navegador)
-app.get('/', (req, res) => {
-  res.status(200).json({ 
-    status: 'ONLINE', 
-    version: 'GOALPULSE-V3-ESTABLE',
-    info: 'Si ves esto, el código nuevo está activo'
+io.on('connection', (socket) => {
+  console.log(`Cliente conectado: ${socket.id}`);
+  socket.on('disconnect', () => {
+    console.log(`Cliente desconectado: ${socket.id}`);
   });
 });
 
-const initSystem = async () => {
-  console.log('--- INICIANDO SISTEMA DE BASE DE DATOS ---');
-  try {
-    await query(`
-      CREATE TABLE IF NOT EXISTS matches (
-        id SERIAL PRIMARY KEY,
-        fixture_id INTEGER UNIQUE,
-        league_name TEXT,
-        home_team TEXT,
-        away_team TEXT,
-        home_score INTEGER,
-        away_score INTEGER,
-        status TEXT,
-        last_update TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-    console.log('✅ TABLA "matches" LISTA EN POSTGRES');
-    
-    // Forzamos la primera descarga de datos sin esperar a nadie
-    console.log('⚽ SINCRONIZACIÓN INICIAL EN MARCHA...');
-    await syncNow();
-  } catch (err) {
-    console.error('⚠️ ERROR AL INICIAR DB:', err instanceof Error ? err.message : err);
-  }
-};
-
 const PORT = process.env.PORT || 3001;
-
-httpServer.listen(Number(PORT), '0.0.0.0', async () => {
-  console.log(`🚀 SERVIDOR FUNCIONANDO EN PUERTO: ${PORT}`);
-  await initSystem();
-  startLiveUpdateJob();
+httpServer.listen(Number(PORT), '0.0.0.0', () => {
+  console.log(`🚀 Servidor corriendo en puerto: ${PORT}`);
 });
