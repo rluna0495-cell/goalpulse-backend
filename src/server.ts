@@ -9,13 +9,7 @@ import { query } from './config/db';
 const app = express();
 const httpServer = createServer(app);
 
-app.use(cors({
-  origin: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
-  credentials: true
-}));
-
+app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
 
 export const io = new Server(httpServer, {
@@ -24,17 +18,17 @@ export const io = new Server(httpServer, {
 
 app.use('/api/football', footballRoutes);
 
-// RUTA DE CONTROL: Si entras aquí y ves este mensaje, el código nuevo está AL AIRE
+// RUTA DE PRUEBA DEFINITIVA
 app.get('/', (req, res) => {
   res.status(200).json({ 
     status: 'ONLINE', 
-    version: '2.0-DB-FORCED',
-    message: 'Si ves esto, el sistema de base de datos está activo.' 
+    version: '3.0-FINAL-RESCUE',
+    db_connected: 'Checking...' 
   });
 });
 
-const initSystem = async () => {
-  console.log('🚀 [SISTEMA] Iniciando comprobación de Base de Datos...');
+const initDB = async () => {
+  console.log('--- INICIANDO BASE DE DATOS ---');
   try {
     await query(`
       CREATE TABLE IF NOT EXISTS matches (
@@ -49,21 +43,18 @@ const initSystem = async () => {
         last_update TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
-    console.log('✅ [DATABASE] Tabla "matches" verificada y lista.');
-
-    console.log('📡 [SYNC] Forzando primera carga de datos...');
+    console.log('✅ TABLA MATCHES LISTA');
     await syncNow(); 
-    
   } catch (err) {
-    console.error('❌ [ERROR CRÍTICO] No se pudo iniciar la DB:', err);
+    console.error('⚠️ ALERTA DB:', err instanceof Error ? err.message : err);
   }
 };
 
-const PORT = Number(process.env.PORT) || 8080;
+// Railway usa process.env.PORT, no lo fuerces a otro
+const PORT = process.env.PORT || 3001;
 
-httpServer.listen(PORT, '0.0.0.0', async () => {
-  console.log(`\n--- GOALPULSE BACKEND v2.0 ---\n`);
-  console.log(`📡 Puerto: ${PORT}`);
-  await initSystem();
+httpServer.listen(Number(PORT), '0.0.0.0', async () => {
+  console.log(`🚀 SERVIDOR ACTIVO EN PUERTO: ${PORT}`);
+  await initDB();
   startLiveUpdateJob();
 });
